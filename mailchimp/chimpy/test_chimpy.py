@@ -10,8 +10,8 @@ You need to activate groups in the Mailchimp web UI before running tests:
 """
 
 import os
-import pprint
 import random
+import pprint
 import md5
 import datetime
 
@@ -24,18 +24,31 @@ EMAIL_ADDRESS = 'casualbear@googlemail.com'
 EMAIL_ADDRESS2 = 'dummy@dummy.com'
 LIST_NAME = 'unittests'
 LIST_ID = None
+DEBUG = True
+
+
+def log(*args, **kwargs):
+    if DEBUG:
+        pprint.pprint(*args, **kwargs)
 
 
 def setup_module():
-    assert 'MAILCHIMP_APIKEY' in os.environ, \
-        "please set the MAILCHIMP_APIKEY environment variable\n" \
-        "you can get a new api key by calling:\n" \
-        " wget 'http://api.mailchimp.com/1.1/?output=json&method=login" \
-        "&password=xxxxxx&username=yyyyyyyy' -O apikey"
-
-
     global chimp
-    chimp = chimpy.Connection(os.environ['MAILCHIMP_APIKEY'])
+    key = None
+    try:
+        from django.conf import settings
+        key = settings.MAILCHIMP_API_KEY
+    except:
+        key = os.environ['MAILCHIMP_APIKEY']
+
+    assert key is not None, (
+        "please set the MAILCHIMP_APIKEY environment variable\n"
+        "you can get a new api key by calling:\n"
+        " wget 'http://api.mailchimp.com/1.1/?output=json&method=login"
+        "&password=xxxxxx&username=yyyyyyyy' -O apikey"
+    )
+
+    chimp = chimpy.Connection(key)
 
 
 def test_ping():
@@ -44,7 +57,7 @@ def test_ping():
 
 def test_lists():
     lists = chimp.lists()
-    pprint.pprint(lists)
+    log(lists)
     list_names = map(lambda x: x['name'], lists)
     assert LIST_NAME in list_names
 
@@ -61,13 +74,13 @@ def test_list_subscribe_and_unsubscribe():
     result = chimp.list_subscribe(list_id(), EMAIL_ADDRESS,
                                     {'FIRST': 'unit', 'LAST': 'tests'},
                                     double_optin=False)
-    pprint.pprint(result)
+    log(result)
     assert result == True
 
     members = chimp.list_members(list_id())['data']
-    print members
+    log(members)
     emails = map(lambda x: x['email'], members)
-    print members
+    log(members)
     assert EMAIL_ADDRESS in emails
 
     result = chimp.list_unsubscribe(list_id(),
@@ -75,7 +88,7 @@ def test_list_subscribe_and_unsubscribe():
                                     delete_member=True,
                                     send_goodbye=False,
                                     send_notify=False)
-    pprint.pprint(result)
+    log(result)
     assert result == True
 
 def test_list_batch_subscribe_and_batch_unsubscribe():
@@ -103,7 +116,7 @@ def test_list_batch_subscribe_and_batch_unsubscribe():
 
 def test_list_interest_groups_add_and_delete():
     # check no lists exists
-#    pprint.pprint(chimp.list_interest_groups(list_id()))
+#    log(chimp.list_interest_groups(list_id()))
     grouping_id = chimp.list_interest_groupings_add(list_id(), 'test grouping', 'hidden', ['first group'])
     assert len(chimp.list_interest_groups(list_id(), grouping_id)) == 1
 
@@ -117,7 +130,7 @@ def test_list_interest_groups_add_and_delete():
     assert (chimp.list_interest_groupings_del(grouping_id))
 
 def test_list_merge_vars_add_and_delete():
-    pprint.pprint(chimp.list_merge_vars(list_id()))
+    log(chimp.list_merge_vars(list_id()))
     assert len(chimp.list_merge_vars(list_id())) == 3
 
     # add list
@@ -142,7 +155,7 @@ def test_list_update_member_and_member_info():
                                     {'TEST': 'abc',
                                     'INTERESTS': 'tlist'}, replace_interests=False)
     info = chimp.list_member_info(list_id(), EMAIL_ADDRESS)
-    pprint.pprint(info)
+    log(info)
 
     # tear down
     assert chimp.list_merge_var_del(list_id(), 'TEST')
@@ -233,7 +246,7 @@ def test_replicate_update_campaign():
     assert res is True
 
 #    campaigns = chimp.campaigns(filter_subject=newsubject)
-#    pprint.pprint(campaigns['data'])
+#    log(campaigns['data'])
 #    assert len(campaigns['data'])==1
 #    campaigns = chimp.campaigns(filter_title=newtitle)
 #    assert len(campaigns['data'])==1
