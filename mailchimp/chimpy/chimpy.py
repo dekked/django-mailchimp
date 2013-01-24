@@ -59,6 +59,20 @@ class Connection(object):
         try:
             if 'error' in result:
                 raise ChimpyException("%s:\n%s" % (result['error'], params))
+            if 'errors' in result:
+                error_count = 0
+                if isinstance(result['errors'], list):
+                    error_count = len(result['errors'])
+                    errors = result['errors']
+                elif isinstance(result['errors'], int):
+                    error_count = result['errors']
+                    errors = result['data']
+
+                if error_count > 0:
+                    raise ChimpyException(
+                        "%d error(s):\n%s" %
+                        (error_count, '\n'.join(map(str, errors)))
+                    )
         except TypeError:
             # thrown when results is not iterable (eg bool)
             pass

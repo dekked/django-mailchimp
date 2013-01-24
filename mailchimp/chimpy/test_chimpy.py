@@ -4,14 +4,13 @@ Tests for chimpy. Run them with noserunner
 You need to activate groups in the Mailchimp web UI before running tests:
 
  * Browse to http://admin.mailchimp.com
- * List setting -> Groups for segmentation 
+ * List setting -> Groups for segmentation
  * Check "add groups to my list"
 
 """
 
 import os
 import pprint
-import operator
 import random
 import md5
 import datetime
@@ -106,15 +105,15 @@ def test_list_interest_groups_add_and_delete():
     # check no lists exists
 #    pprint.pprint(chimp.list_interest_groups(list_id()))
     grouping_id = chimp.list_interest_groupings_add(list_id(), 'test grouping', 'hidden', ['first group'])
-    assert len(chimp.list_interest_groups(list_id(), grouping_id)['groups']) == 1
+    assert len(chimp.list_interest_groups(list_id(), grouping_id)) == 1
 
     # add list
     assert chimp.list_interest_group_add(list_id(), 'test', grouping_id)
-    assert len(chimp.list_interest_groups(list_id(), grouping_id)['groups']) == 2
+    assert len(chimp.list_interest_groups(list_id(), grouping_id)) == 2
 
     # delete list
     assert chimp.list_interest_group_del(list_id(), 'test', grouping_id)
-    assert len(chimp.list_interest_groups(list_id(), grouping_id)['groups']) == 1
+    assert len(chimp.list_interest_groups(list_id(), grouping_id)) == 1
     assert (chimp.list_interest_groupings_del(grouping_id))
 
 def test_list_merge_vars_add_and_delete():
@@ -182,10 +181,18 @@ def test_create_delete_campaign():
     cid = chimp.campaign_create('regular', options, content, segment_opts=segment_opts)
     assert isinstance(cid, basestring)
 
+    # Filtering by subject doesn't work?
+#    campaigns = chimp.campaigns(filter_subject=subject)
+#    assert len(campaigns['data'])==1
+
     # check if the new campaign really is there
-    campaigns = chimp.campaigns(filter_subject=subject)
-    assert len(campaigns['data'])==1
-    assert campaigns['data'][0]['id'] == cid
+    campaign = None
+    for c in chimp.campaigns()['data']:
+        if c['subject'] == subject:
+            assert campaign is None
+            campaign = c
+
+    assert campaign['id'] == cid
 
     # our content properly addd?
     final_content = chimp.campaign_content(cid)
@@ -254,12 +261,18 @@ def test_schedule_campaign():
     content = {'html': html}
     cid = chimp.campaign_create('regular', options, content)
 
-    schedule_time = datetime.datetime(2012, 12, 20, 19, 0, 0)
+    schedule_time = datetime.datetime(2112, 12, 20, 19, 0, 0)
     chimp.campaign_schedule(cid, schedule_time)
 
-    campaign = chimp.campaigns(filter_subject=subject)['data'][0]
+    # Filtering by subject doesn't work?
+#    campaign = chimp.campaigns(filter_subject=subject)['data'][0]
+    campaign = None
+    for c in chimp.campaigns()['data']:
+        if c['subject'] == subject:
+            assert campaign is None
+            campaign = c
     assert campaign['status'] == 'schedule'
-    assert campaign['send_time'] in ('Dec 20, 2012 07:00 pm', '2012-12-20 19:00:00')
+    assert campaign['send_time'] in ('Dec 20, 2112 07:00 pm', '2112-12-20 19:00:00')
 
     chimp.campaign_unschedule(cid)
     campaign = chimp.campaigns(filter_subject=subject)['data'][0]
@@ -300,6 +313,14 @@ def test_rss_campaign():
 
     #clean up
     chimp.campaign_delete(cid)
+
+def test_missing_list_member():
+    """Just check the exception is raised correctly"""
+    try:
+        chimp.list_member_info(list_id(), 'nosuch@example.com')
+        assert False
+    except chimpy.ChimpyException:
+        pass
 
 if __name__ == '__main__':
     setup_module()
