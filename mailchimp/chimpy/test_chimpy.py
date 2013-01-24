@@ -322,6 +322,71 @@ def test_missing_list_member():
     except chimpy.ChimpyException:
         pass
 
+def test_one_missing_list_member():
+    """Test a multi-email lookup where at least one does exist."""
+    chimp.list_subscribe(
+        list_id(), EMAIL_ADDRESS,
+        {'FIRST': 'unit', 'LAST': 'tests'}, double_optin=False,
+    )
+
+    fails = []
+    result = None
+    email = 'nosuch@example.com'
+
+    try:
+        result = chimp.list_member_info(
+            list_id(), [email, EMAIL_ADDRESS],
+        )
+        if not any(map(lambda x: x.get('error', False), result['data'])):
+            fails.append('bad email address not raised as error by API')
+    except chimpy.ChimpyException:
+        fails.append('exception should not have been raised')
+
+    chimp.list_unsubscribe(
+        list_id(), EMAIL_ADDRESS,
+        delete_member=True, send_goodbye=False, send_notify=False,
+    )
+
+    assert len(fails) == 0, '\n'.join(fails)
+
+def test_partial_batch_unsubscribe():
+    """Make sure no exception is raised when some unsubscribes succeed"""
+    chimp.list_subscribe(
+        list_id(), EMAIL_ADDRESS,
+        {'FIRST': 'unit', 'LAST': 'tests'}, double_optin=False,
+    )
+
+    fails = []
+    try:
+        result = chimp.list_batch_unsubscribe(
+            list_id(), ['nosuch@example.com', EMAIL_ADDRESS],
+            delete_member=True, send_goodbye=False, send_notify=False,
+        )
+
+        if result['success_count'] != 1:
+            fails.append('expected 1 success, got %d' % result['success_count'])
+        if result['error_count'] != 1:
+            fails.append('expected 1 error, got %d' % result['error_count'])
+    except:
+        fails.append('exception should not have been raised')
+        chimp.list_unsubscribe(
+            list_id(), EMAIL_ADDRESS,
+            delete_member=True, send_goodbye=False, send_notify=False,
+        )
+
+    assert len(fails) == 0, '\n'.join(fails)
+
+def test_bad_batch_unsubscribe():
+    try:
+        chimp.list_batch_unsubscribe(
+            list_id(), ['nosuch@example.com'],
+            delete_member=True, send_goodbye=False, send_notify=False,
+        )
+        assert False
+    except chimpy.ChimpyException:
+        pass
+
+
 if __name__ == '__main__':
     setup_module()
     for f in globals().keys():
