@@ -5,7 +5,10 @@ from mailchimp.settings import VIEWS_OVERVIEW
 
 class MailchimpAdmin(admin.ModelAdmin):
     def get_urls(self):
-        from django.conf.urls.defaults import patterns, url
+        try:
+	        from django.conf.urls import patterns, url
+        except ImportError: # Django < 1.4
+	        from django.conf.urls.defaults import patterns, url
         urlpatterns = patterns('',
             url(r'^$',
                 VIEWS_OVERVIEW,
